@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: society-maintenance-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: OVERDUE_DAYS
+        value: "7"
+      - key: CLIENT_URL
+        sync: false
