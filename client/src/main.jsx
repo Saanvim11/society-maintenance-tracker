@@ -7,7 +7,128 @@ function Shell({u,onLogout}){const[tab,setTab]=useState('dashboard');const[open,
 function Dashboard(){const[d,setD]=useState(null);useEffect(()=>{api('/dashboard').then(setD)},[]);if(!d)return <div className="loading">Loading dashboard...</div>;return <section><div className="cards"><Card icon={<ClipboardList/>} title="Total complaints" value={d.total}/><Card icon={<Clock/>} title="Open" value={d.statuses.find(x=>x.status==='Open')?.n||0}/><Card icon={<CheckCircle2/>} title="Resolved" value={d.statuses.find(x=>x.status==='Resolved')?.n||0}/><Card icon={<AlertTriangle/>} title="Overdue" value={d.overdue} danger/></div><div className="grid2"><Panel title="By status"><Bars data={d.statuses}/></Panel><Panel title="By category"><Bars data={d.categories}/></Panel></div><div className="callout"><ShieldCheck/><div><b>Overdue policy</b><p>Open complaints older than the configured threshold are automatically surfaced at the top of the admin queue.</p></div></div></section>}
 function Card({icon,title,value,danger}){return <div className={'card '+(danger?'danger':'')}><div className="icon">{icon}</div><span>{title}</span><strong>{value}</strong></div>}function Panel({title,children}){return <div className="panel"><h3>{title}</h3>{children}</div>}function Bars({data}){return <div className="bars">{data.length?data.map(x=><div className="barrow" key={x.status||x.category}><span>{x.status||x.category}</span><b>{x.n}</b></div>):<span className="muted">No data yet</span>}</div>}
 function Complaints({admin}){const[rows,setRows]=useState([]),[show,setShow]=useState(false),[refresh,setRefresh]=useState(0);useEffect(()=>{api('/complaints').then(setRows)},[refresh]);return <section><div className="toolbar"><div><h3>{admin?'All complaints':'My complaints'}</h3><span className="muted">{rows.length} request{rows.length!==1?'s':''}</span></div>{!admin&&<button className="primary small" onClick={()=>setShow(true)}><Plus size={17}/>New complaint</button>}</div>{rows.map(c=><Complaint key={c.id} c={c} admin={admin} onDone={()=>setRefresh(x=>x+1)}/>)}{!rows.length&&<Empty text={admin?'No complaints yet.':'You have not raised any complaints yet.'}/>} {show&&<NewComplaint close={()=>setShow(false)} done={()=>{setShow(false);setRefresh(x=>x+1)}}/>}</section>}
-function Complaint({c,admin,onDone}){const[edit,setEdit]=useState(false);async function save(e){e.preventDefault();const f=new FormData(e.target);await api('/complaints/'+c.id,{method:'PATCH',body:JSON.stringify({status:f.get('status'),priority:f.get('priority'),note:f.get('note')})});setEdit(false);onDone()}return <div className={'complaint '+(c.overdue?'overdue':'')}><div className="complaint-top"><div><span className="id">#{String(c.id).padStart(4,'0')}</span><h3>{c.category}</h3></div><div className="badges"><span className={'badge '+c.status.toLowerCase().replace(' ','-')}>{c.status}</span><span className={'priority '+c.priority.toLowerCase()}>{c.priority}</span>{c.overdue&&<span className="badge overdue-b">Overdue</span>}</div></div><p>{c.description}</p>{c.photo&&<img className="photo" src={API.replace('/api','')+c.photo}/>}<div className="meta"><span>Created {new Date(c.created_at).toLocaleString()}</span>{admin&&<span>Resident: {c.resident}</span>}</div><div className="history"><b>Status history</b>{c.history.map(h=><div className="history-row" key={h.id}><i></i><div><strong>{h.status}</strong><span>{h.note||'Status updated'} · {h.actor} · {new Date(h.created_at).toLocaleString()}</span></div></div>)}</div>{admin&&<>{!edit?<button className="outline" onClick={()=>setEdit(true)}>Update complaint</button>:<form className="edit" onSubmit={save}><select name="status" defaultValue={c.status}><option>Open</option><option>In Progress</option><option>Resolved</option></select><select name="priority" defaultValue={c.priority}><option>Low</option><option>Medium</option><option>High</option></select><input name="note" placeholder="Optional note"/><button className="primary small">Save</button></form></>}</>}</div>}
+function Complaint({c,admin,onDone}){
+  const [edit,setEdit]=useState(false);
+
+  async function save(e){
+    e.preventDefault();
+    const f=new FormData(e.target);
+
+    await api('/complaints/'+c.id,{
+      method:'PATCH',
+      body:JSON.stringify({
+        status:f.get('status'),
+        priority:f.get('priority'),
+        note:f.get('note')
+      })
+    });
+
+    setEdit(false);
+    onDone();
+  }
+
+  return (
+    <div className={'complaint '+(c.overdue?'overdue':'')}>
+      <div className="complaint-top">
+        <div>
+          <span className="id">#{String(c.id).padStart(4,'0')}</span>
+          <h3>{c.category}</h3>
+        </div>
+
+        <div className="badges">
+          <span className={'badge '+c.status.toLowerCase().replace(' ','-')}>
+            {c.status}
+          </span>
+
+          <span className={'priority '+c.priority.toLowerCase()}>
+            {c.priority}
+          </span>
+
+          {c.overdue && (
+            <span className="badge overdue-b">
+              Overdue
+            </span>
+          )}
+        </div>
+      </div>
+
+      <p>{c.description}</p>
+
+      {c.photo && (
+        <img
+          className="photo"
+          src={API.replace('/api','')+c.photo}
+        />
+      )}
+
+      <div className="meta">
+        <span>
+          Created {new Date(c.created_at).toLocaleString()}
+        </span>
+
+        {admin && (
+          <span>
+            Resident: {c.resident}
+          </span>
+        )}
+      </div>
+
+      <div className="history">
+        <b>Status history</b>
+
+        {c.history.map(h => (
+          <div className="history-row" key={h.id}>
+            <i></i>
+
+            <div>
+              <strong>{h.status}</strong>
+
+              <span>
+                {h.note || 'Status updated'} · {h.actor} · {new Date(h.created_at).toLocaleString()}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {admin && (
+        <>
+          {!edit ? (
+            <button
+              className="outline"
+              onClick={() => setEdit(true)}
+            >
+              Update complaint
+            </button>
+          ) : (
+            <form className="edit" onSubmit={save}>
+              <select name="status" defaultValue={c.status}>
+                <option>Open</option>
+                <option>In Progress</option>
+                <option>Resolved</option>
+              </select>
+
+              <select name="priority" defaultValue={c.priority}>
+                <option>Low</option>
+                <option>Medium</option>
+                <option>High</option>
+              </select>
+
+              <input
+                name="note"
+                placeholder="Optional note"
+              />
+
+              <button className="primary small">
+                Save
+              </button>
+            </form>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 function NewComplaint({close,done}){async function submit(e){e.preventDefault();const f=new FormData(e.target);try{await api('/complaints',{method:'POST',body:f});done()}catch(err){alert(err.message)}}return <div className="modal"><form className="modal-card" onSubmit={submit}><div className="modal-head"><div><h2>Raise complaint</h2><span className="muted">Tell the admin what needs attention.</span></div><button type="button" onClick={close}><X/></button></div><label>Category<select name="category"><option>Plumbing</option><option>Electrical</option><option>Security</option><option>Cleaning</option><option>Lift</option><option>Parking</option><option>Other</option></select></label><label>Description<textarea name="description" rows="5" required placeholder="Describe the issue..."></textarea></label><label className="upload"><Camera/><span>Attach photo (optional)<input type="file" name="photo" accept="image/*"/></span></label><div className="actions"><button type="button" className="outline" onClick={close}>Cancel</button><button className="primary">Submit complaint</button></div></form></div>}
 function Notices({admin}){const[n,setN]=useState([]),[show,setShow]=useState(false),[r,setR]=useState(0);useEffect(()=>{api('/notices').then(setN)},[r]);return <section><div className="toolbar"><div><h3>Community notices</h3><span className="muted">Stay updated with society announcements.</span></div>{admin&&<button className="primary small" onClick={()=>setShow(true)}><Plus size={17}/>Post notice</button>}</div>{n.map(x=><div className={'notice '+(x.important?'important':'')} key={x.id}>{x.important&&<span className="important-tag">IMPORTANT</span>}<h3>{x.title}</h3><p>{x.body}</p><span className="muted">{new Date(x.created_at).toLocaleString()} · {x.author}</span></div>)}{!n.length&&<Empty text="No notices have been posted yet."/>}{show&&<div className="modal"><form className="modal-card" onSubmit={async e=>{e.preventDefault();const f=new FormData(e.target);await api('/notices',{method:'POST',body:JSON.stringify({title:f.get('title'),body:f.get('body'),important:f.get('important')==='on'})});setShow(false);setR(x=>x+1)}}><div className="modal-head"><h2>Post notice</h2><button type="button" onClick={()=>setShow(false)}><X/></button></div><input name="title" placeholder="Notice title" required/><textarea name="body" rows="6" placeholder="Notice details" required></textarea><label className="check"><input type="checkbox" name="important"/> Mark as important and notify residents</label><div className="actions"><button type="button" className="outline" onClick={()=>setShow(false)}>Cancel</button><button className="primary">Publish</button></div></form></div>}</section>}
 function Empty({text}){return <div className="empty"><ClipboardList size={38}/><b>{text}</b></div>}createRoot(document.getElementById('root')).render(<App/>);
